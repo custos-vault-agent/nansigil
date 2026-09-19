@@ -6,12 +6,12 @@ A trader's on-chain reputation already exists: Nansen knows which wallets are Sm
 
 ## How it works
 
-Like Pyth Hermes or Chainlink Data Streams, the service never sends a transaction. A client asks for a signed payload and relays it on-chain itself. The consuming contract recomputes the hash, checks the signature against the attestor address, and applies its own rules on top. Custos's `NansenModule`, the first consumer, also requires the signed wallet to be the agent's creator and refuses any payload not newer than the one it already holds.
+Like Pyth Hermes or Chainlink Data Streams, the service never sends a transaction. A client asks for a signed payload and relays it on-chain itself. The consuming contract recomputes the hash, checks the signature against the attestor address, and applies its own rules on top. The on-chain half, `NanSigil` (repo `nansigil-contract`), keys attestations by wallet and refuses any payload not newer than the one it already holds. Custos, the first consumer, binds one to an agent by looking up `latest(agent.creator)`.
 
 ```
 client ──GET /attestation/:wallet──▶ NanSigil ──Nansen Profiler──▶ label, pnl, winRate
        ◀── {wallet,label,pnl,winRate,timestamp,hash,signature,attestor} ──
-client ──submitAttestation(agentId, …payload, signature)──▶ consuming contract
+client ──NanSigil.submit(…payload, signature)──▶ any contract reads NanSigil.latest / verify
 ```
 
 The pull model moves cost and initiative to the party that wants the data: a creator who wants their badge pulls a payload and pays the gas; anyone may relay; nothing needs to be trusted except the attestor key, and that is verifiable by anyone.
@@ -27,7 +27,7 @@ src/
   config.ts             env → typed config, fails fast on missing vars
   routes/attestation.ts GET /attestation/:wallet
   attestation/
-    sign.ts             attestHash + EIP-191 signature (mirrors NansenModule)
+    sign.ts             attestHash + EIP-191 signature (mirrors NanSigil)
     service.ts          profile → hash → sign; JSON shape
   nansen/
     client.ts           NansenClient interface + HttpNansenClient (labels, pnl-summary)
@@ -46,7 +46,7 @@ bun dev                   # http://localhost:3001
 curl localhost:3001/attestation/0x70997970C51812dc3A010C7d01b50e0d17dc79C8
 ```
 
-`ATTESTOR_PRIVATE_KEY` must match `NansenModule.attestor()`; otherwise every relayed payload reverts with `AttestationInvalid`. With `NANSEN_API_KEY` empty the service reads `fixtures/nansen.json`.
+`ATTESTOR_PRIVATE_KEY` must match `NanSigil.attestor()`; otherwise every relayed payload reverts with `AttestationInvalid`. With `NANSEN_API_KEY` empty the service reads `fixtures/nansen.json`.
 
 ## Endpoints
 
@@ -73,7 +73,7 @@ A wallet Nansen knows nothing about still gets a payload with an empty label and
 bun test          # unit + HTTP
 ```
 
-The e2e test deploys nothing itself; point it at an anvil that has the Custos stack, pull a payload, relay it from a wallet that is not the attestor, and assert `verifyAttestation` returns true:
+The e2e test deploys nothing itself; point it at an anvil that has the Custos stack (which deploys NanSigil), pull a payload, relay it from a wallet that is not the attestor, and assert `NanSigil.verify` returns true and `CustosCore.agentAttestation` sees it:
 
 ```bash
 # cd ../custos-contract && anvil            (terminal 1)

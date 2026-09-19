@@ -1,7 +1,7 @@
 import { type Address, encodeAbiParameters, type Hex, keccak256 } from "viem";
 import type { PrivateKeyAccount } from "viem/accounts";
 
-/** Plaintext behind one attestation: exactly the tuple NansenModule hashes. */
+/** Plaintext behind one attestation: exactly the tuple NanSigil hashes. */
 export type Attestation = {
   wallet: Address;
   label: string;
@@ -10,7 +10,7 @@ export type Attestation = {
   timestamp: number;
 };
 
-/** Mirrors NansenModule: keccak256(abi.encode(wallet, label, pnl, winRate, timestamp)). */
+/** Mirrors NanSigil: keccak256(abi.encode(wallet, label, pnl, winRate, timestamp)). */
 export function attestHash(a: Attestation): Hex {
   return keccak256(
     encodeAbiParameters(

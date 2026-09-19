@@ -3,8 +3,8 @@ import { isAddress } from "viem";
 import { type AttestationService, toJson } from "../attestation/service";
 
 // GET /attestation/:wallet → signed payload. The caller relays it to
-// NansenModule.submitAttestation with the agentId of their choice; the contract
-// checks that agent's creator is `wallet`.
+// NanSigil.submit; any consuming contract then reads NanSigil.latest(wallet)
+// and binds it to its own records (Custos: the agent's creator).
 export const attestationRoutes = (service: AttestationService) =>
   new Elysia({ prefix: "/attestation" }).get(
     "/:wallet",

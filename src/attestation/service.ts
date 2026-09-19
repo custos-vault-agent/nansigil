@@ -3,7 +3,7 @@ import type { PrivateKeyAccount } from "viem/accounts";
 import type { CreatorProfile } from "../nansen/profile";
 import { type Attestation, attestHash, signAttestation } from "./sign";
 
-/** What a client needs to call NansenModule.submitAttestation(agentId, ...). */
+/** What a client needs to call NanSigil.submit(...). */
 export type SignedAttestation = Attestation & {
   hash: Hex;
   signature: Hex;
@@ -29,7 +29,7 @@ export function createAttestationService(
 ): AttestationService {
   return {
     async attest(wallet) {
-      // A new timestamp per request: NansenModule only accepts payloads newer
+      // A new timestamp per request: NanSigil only accepts payloads newer
       // than the one it has, so each pull can supersede the last.
       const attestation: Attestation = { wallet, ...(await profile(wallet)), timestamp: now() };
       const hash = attestHash(attestation);
