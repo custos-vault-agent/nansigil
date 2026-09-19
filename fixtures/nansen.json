@@ -1,0 +1,6 @@
+{
+  "0x70997970c51812dc3a010c7d01b50e0d17dc79c8": {
+    "labels": [{ "label": "Smart Trader", "category": "smart_money" }],
+    "pnl": { "realized_pnl_usd": 42000, "realized_pnl_percent": 12.5, "win_rate": 61, "traded_times": 140, "traded_token_count": 9 }
+  }
+}

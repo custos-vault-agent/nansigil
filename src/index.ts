@@ -1,7 +1,6 @@
-import { Elysia } from "elysia";
+import { buildApp } from "./app";
+import { loadConfig } from "./config";
 
-const app = new Elysia().get("/", () => "Hello Elysia").listen(3000);
-
-console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
-);
+const cfg = loadConfig();
+const app = (await buildApp(cfg)).listen(cfg.port);
+console.log(`custos-attestation on ${app.server?.hostname}:${app.server?.port}`);
