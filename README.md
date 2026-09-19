@@ -1,12 +1,22 @@
-# custos-attestation
+# NanSigil
 
-Signs Nansen attestations for Custos, pull-on-demand. Like Pyth Hermes or Chainlink Data Streams, this service never sends a transaction: a client asks for a signed payload and relays it to `NansenModule.submitAttestation` itself. The contract checks the signature against the attestor address, binds the payload to the agent (the signed wallet must be the agent's creator), and rejects anything older than what it already holds.
+NanSigil turns Nansen's read of a wallet into a signed, portable proof that any contract can verify. It is pulled on demand by whoever needs it, never pushed by a bot you have to trust.
+
+A trader's on-chain reputation already exists: Nansen knows which wallets are Smart Traders, what their realized PnL is, how often they win. Contracts cannot read any of it. NanSigil is the bridge: one stateless service that answers "what does Nansen say about this wallet, signed", and one payload format any contract can check against the attestor's address.
+
+## How it works
+
+Like Pyth Hermes or Chainlink Data Streams, the service never sends a transaction. A client asks for a signed payload and relays it on-chain itself. The consuming contract recomputes the hash, checks the signature against the attestor address, and applies its own rules on top. Custos's `NansenModule`, the first consumer, also requires the signed wallet to be the agent's creator and refuses any payload not newer than the one it already holds.
 
 ```
-client ──GET /attestation/:wallet──▶ service ──Nansen Profiler──▶ label, pnl, winRate
+client ──GET /attestation/:wallet──▶ NanSigil ──Nansen Profiler──▶ label, pnl, winRate
        ◀── {wallet,label,pnl,winRate,timestamp,hash,signature,attestor} ──
-client ──submitAttestation(agentId, …payload, signature)──▶ NansenModule
+client ──submitAttestation(agentId, …payload, signature)──▶ consuming contract
 ```
+
+The pull model moves cost and initiative to the party that wants the data: a creator who wants their badge pulls a payload and pays the gas; anyone may relay; nothing needs to be trusted except the attestor key, and that is verifiable by anyone.
+
+What it is not: trustless. The attestor is one key run by the operator, and the badge policy (which labels count) is the operator's, not the contract's.
 
 ## Layout
 

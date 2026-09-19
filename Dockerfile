@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# custos-attestation: Elysia on Bun. Production deps only, run from a
+# NanSigil: Elysia on Bun. Production deps only, run from a
 # distroless Bun image (no shell, non-root) with a read-only filesystem in mind:
 # the service writes nothing to disk.
 

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "custos-attestation",
+      "name": "nansigil",
       "dependencies": {
         "elysia": "latest",
         "viem": "^2.56.8",
