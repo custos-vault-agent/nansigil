@@ -1,18 +1,20 @@
 # NanSigil
 
-NanSigil turns what Nansen knows about a wallet into a signed proof that any smart contract can check. The proof is pulled by whoever needs it and carried on-chain by anyone; nothing has to be trusted except one signing key, and that key is public.
+NanSigil makes what Nansen knows about a wallet available to a smart contract. An attestor signs the data off-chain. Anyone can then send the signed payload on-chain, and any contract can verify it. Only one signing key needs trust, and the address of that key is public.
 
 ## The problem
 
-A trader's reputation already exists on-chain. Nansen can tell you which wallets are Smart Traders or Funds, what they have actually made, and how often they win. None of that is readable by a contract. A lending protocol that wants to offer better terms to a proven wallet, a DAO that wants to gate delegation on a track record, or a marketplace that wants to show a badge next to a creator's name all end up in the same place: running their own bot, holding their own API key, and asking users to trust numbers that came from a database.
+The reputation of a trader is already on-chain. Nansen can tell you which wallets are Smart Traders or Funds, how much they made, and how often they win. A contract cannot read any of this.
+
+Each product that wants the data solves the problem again. One lending protocol gives better terms to a proven wallet. One DAO gates delegation on a track record. One marketplace shows a badge next to a name. Each of them runs a bot, holds an API key, and asks users to trust numbers from a private database.
 
 ## What NanSigil does
 
-NanSigil is a small signing service and a small contract.
+NanSigil has two parts: a signing service and a contract.
 
-The service answers one question: "what does Nansen say about this wallet, and sign it." It looks the wallet up, condenses the answer to a label, a realized PnL and a win rate, stamps the time, and signs the result with the attestor key. It keeps no state and never sends a transaction.
+The service answers one question. It reads the profile of a wallet from Nansen, keeps three values from it, adds the current time, and signs the result. The three values are a label, a realized PnL, and a win rate. The service keeps no state and sends no transaction.
 
-The contract, `NanSigil`, accepts those signed payloads from anyone. It checks the signature against the attestor, keeps only the newest payload per wallet, and lets any other contract read or verify it. An attestation belongs to a wallet, not to any one product, so every consumer sees the same proof.
+The contract is `NanSigil`. It accepts a signed payload from any sender. It compares the signature with the attestor address and keeps only the newest payload for each wallet. Any other contract can then read or verify that payload. An attestation belongs to a wallet, so every consumer reads the same data.
 
 ## How it works
 
@@ -24,17 +26,17 @@ sequenceDiagram
     participant C as NanSigil contract
     participant X as Your contract
 
-    U->>S: what does Nansen say about wallet W?
-    S->>N: labels, PnL, win rate for W
+    U->>S: GET /attestation/:wallet
+    S->>N: labels, PnL, win rate for the wallet
     N-->>S: profile
-    S-->>U: signed payload {W, label, pnl, winRate, time}
+    S-->>U: signed payload {wallet, label, pnl, winRate, time}
     U->>C: submit(payload, signature)
-    C->>C: signer is the attestor? newer than last?
-    X->>C: latest(W) / verify(...)
-    C-->>X: yes, and here is what it says
+    C->>C: compare the signer with the attestor, refuse an older payload
+    X->>C: latest(wallet) or verify(...)
+    C-->>X: the stored attestation
 ```
 
-Pull, not push. The party that wants a wallet's reputation on-chain is the one who fetches the proof and pays to submit it. There is no bot that has to stay alive, no gas the operator has to fund, and no update that can silently stop.
+The model is pull, not push. The party that wants the data on-chain reads the payload and pays for the transaction. No bot must stay alive, the operator funds no gas, and no update can stop without notice.
 
 ## Where it sits
 
@@ -53,13 +55,34 @@ flowchart LR
     DAO[DAO / launchpad] --> Ctr
 ```
 
-Custos is the first consumer: when a creator registers a trading agent, their wallet's attestation becomes the agent's badge, and the marketplace checks it against the contract rather than trusting its own backend. The other consumers in the picture are what the same proof enables without any change to NanSigil.
+Custos is the first consumer. A creator registers a trading agent, and the attestation of the creator wallet becomes the badge of that agent. The marketplace reads the badge from the contract and not from its own backend. The other consumers in the diagram can use the same payload without a change to NanSigil.
+
+## Endpoints
+
+| Route | Result |
+|---|---|
+| `GET /attestation/:wallet` | A signed payload for that wallet. The field `pnl` is a decimal string. |
+| `GET /health` | The attestor address and the data source, `http` or `fixture`. |
+
+Each call returns a new timestamp, so a new payload always replaces an older one on-chain. The service keeps the Nansen profile of a wallet for `PROFILE_TTL_MS`, which is 10 minutes by default. Repeated calls for the same wallet therefore use no more Nansen credits within that time.
+
+If `NANSEN_API_KEY` is empty, the service reads `fixtures/nansen.json` instead of Nansen. Use this mode for a local demo.
+
+## Commands
+
+```bash
+cp .env.example .env
+bun install
+bun dev          # http://localhost:3001
+bun test
+```
+
+CAUTION: SET `ATTESTOR_PRIVATE_KEY` TO THE KEY OF THE ADDRESS IN `NanSigil.attestor()`. IF THE TWO ADDRESSES ARE DIFFERENT, THE CONTRACT REFUSES EVERY PAYLOAD WITH `AttestationInvalid`.
 
 ## What it is not
 
-NanSigil is verifiable, not trustless. One attestor key signs everything, and the operator decides which Nansen labels count. Anyone can check that a proof is genuine; nobody can check that the operator was fair. Rotating the key invalidates every proof signed with the old one, on purpose.
+NanSigil is verifiable, but it is not trustless. One attestor key signs every payload, and the operator selects which Nansen labels count. Anyone can prove that a payload is genuine. Nobody can prove that the operator was fair. A rotation of the key makes every older payload invalid, and this result is intentional.
 
-## Repository
+## Repositories
 
-- This repo: the signing service.
-- `contract/`: the `NanSigil` contract, included as a submodule from [`nansigil-contract`](https://github.com/custos-vault-agent/nansigil-contract).
+This repository contains the signing service. The folder `contract` is a submodule of [`nansigil-contract`](https://github.com/custos-vault-agent/nansigil-contract), which contains the `NanSigil` contract.
