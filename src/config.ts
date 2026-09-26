@@ -17,6 +17,8 @@ export type Config = {
   nansenChain: string;
   /** How long a wallet's Nansen profile is reused before re-querying (credits). */
   profileTtlMs: number;
+  /** Length of the PnL window that the Profiler query asks for, in days. */
+  pnlWindowDays: number;
 };
 
 export function loadConfig(env = process.env): Config {
@@ -27,5 +29,6 @@ export function loadConfig(env = process.env): Config {
     nansenFixture: env.NANSEN_FIXTURE ?? "fixtures/nansen.json",
     nansenChain: env.NANSEN_CHAIN ?? "all",
     profileTtlMs: Number(env.PROFILE_TTL_MS ?? String(10 * 60 * 1000)),
+    pnlWindowDays: Number(env.PNL_WINDOW_DAYS ?? "365"),
   };
 }

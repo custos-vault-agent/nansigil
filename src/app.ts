@@ -11,7 +11,7 @@ import { attestationRoutes } from "./routes/attestation";
 export async function buildApp(cfg: Config) {
   const account = privateKeyToAccount(cfg.attestorPrivateKey);
   const nansen: NansenClient = cfg.nansenApiKey
-    ? new HttpNansenClient(cfg.nansenApiKey)
+    ? new HttpNansenClient(cfg.nansenApiKey, cfg.pnlWindowDays)
     : await FixtureNansenClient.fromFile(cfg.nansenFixture);
   const service = createAttestationService(account, cachedProfiler(nansen, cfg.nansenChain, cfg.profileTtlMs));
 
