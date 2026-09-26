@@ -25,6 +25,14 @@ describe("GET /attestation/:wallet", () => {
     const res = await app.handle(new Request("http://localhost/attestation/not-an-address"));
     expect(res.status).toBe(400);
   });
+  test("answers with CORS headers, so a browser can call it", async () => {
+    const res = await app.handle(
+      new Request("http://localhost/attestation/0x70997970C51812dc3A010C7d01b50e0d17dc79C8", {
+        headers: { origin: "http://localhost:3000" },
+      }),
+    );
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+  });
   test("health reports the attestor and data source", async () => {
     const body = await (await app.handle(new Request("http://localhost/health"))).json();
     expect(body).toEqual({ ok: true, attestor: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", nansen: "fixture" });

@@ -19,6 +19,8 @@ export type Config = {
   profileTtlMs: number;
   /** Length of the PnL window that the Profiler query asks for, in days. */
   pnlWindowDays: number;
+  /** Value of Access-Control-Allow-Origin. The browser calls this service directly. */
+  corsOrigin: string;
 };
 
 export function loadConfig(env = process.env): Config {
@@ -30,5 +32,6 @@ export function loadConfig(env = process.env): Config {
     nansenChain: env.NANSEN_CHAIN ?? "all",
     profileTtlMs: Number(env.PROFILE_TTL_MS ?? String(10 * 60 * 1000)),
     pnlWindowDays: Number(env.PNL_WINDOW_DAYS ?? "365"),
+    corsOrigin: env.CORS_ORIGIN ?? "*",
   };
 }
