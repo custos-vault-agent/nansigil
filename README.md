@@ -62,11 +62,11 @@ Custos is the first consumer. A creator registers a trading agent, and the attes
 | Route | Result |
 |---|---|
 | `GET /attestation/:wallet` | A signed payload for that wallet. The field `pnl` is a decimal string. |
-| `GET /health` | The attestor address and the data source, `http` or `fixture`. |
+| `GET /health` | The attestor address and the data source: `fixture`, `http`, or `fixture+http`. |
 
 Each call returns a new timestamp, so a new payload always replaces an older one on-chain. The service keeps the Nansen profile of a wallet for `PROFILE_TTL_MS`, which is 10 minutes by default. Repeated calls for the same wallet therefore use no more Nansen credits within that time.
 
-If `NANSEN_API_KEY` is empty, the service reads `fixtures/nansen.json` instead of Nansen. Use this mode for a local demo.
+The wallets in `fixtures/nansen.json` are answered from that file, and every other wallet from Nansen. A demo wallet therefore keeps the same numbers while real wallets stay live. With no `NANSEN_API_KEY` the service is fixture-only, which is the mode for a local demo. Without the fixture file it reads Nansen for every wallet. `/health` reports which of the three applies.
 
 ## Commands
 
