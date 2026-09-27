@@ -21,6 +21,13 @@ export type Config = {
   pnlWindowDays: number;
   /** Value of Access-Control-Allow-Origin. The browser calls this service directly. */
   corsOrigin: string;
+  /** Redis or Valkey URL for the shared cache and the rate limiter. Empty = memory. */
+  redisUrl: string;
+  /** Attestation requests allowed per client per window. */
+  rateLimit: number;
+  rateLimitWindowSeconds: number;
+  /** Read the client address from X-Forwarded-For. Only behind a proxy you control. */
+  trustProxy: boolean;
 };
 
 export function loadConfig(env = process.env): Config {
@@ -33,5 +40,9 @@ export function loadConfig(env = process.env): Config {
     profileTtlMs: Number(env.PROFILE_TTL_MS ?? String(10 * 60 * 1000)),
     pnlWindowDays: Number(env.PNL_WINDOW_DAYS ?? "365"),
     corsOrigin: env.CORS_ORIGIN ?? "*",
+    redisUrl: env.REDIS_URL ?? "",
+    rateLimit: Number(env.RATE_LIMIT ?? "30"),
+    rateLimitWindowSeconds: Number(env.RATE_LIMIT_WINDOW_S ?? "60"),
+    trustProxy: env.TRUST_PROXY === "true",
   };
 }

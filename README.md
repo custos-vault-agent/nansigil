@@ -62,9 +62,19 @@ Custos is the first consumer. A creator registers a trading agent, and the attes
 | Route | Result |
 |---|---|
 | `GET /attestation/:wallet` | A signed payload for that wallet. The field `pnl` is a decimal string. |
-| `GET /health` | The attestor address and the data source: `fixture`, `http`, or `fixture+http`. |
+| `GET /health` | The attestor address, the data source (`fixture`, `http`, or `fixture+http`), the cache backend, and the rate limit. |
 
-Each call returns a new timestamp, so a new payload always replaces an older one on-chain. The service keeps the Nansen profile of a wallet for `PROFILE_TTL_MS`, which is 10 minutes by default. Repeated calls for the same wallet therefore use no more Nansen credits within that time.
+Each call returns a new timestamp, so a new payload always replaces an older one on-chain.
+
+## Cache and rate limit
+
+A signature is cheap. A Nansen call is the expensive part, so the service keeps the profile of a wallet for `PROFILE_TTL_MS`, 10 minutes by default. Repeated calls for one wallet spend no more credits inside that time, and calls that arrive together share one request.
+
+Set `REDIS_URL` to keep that cache in Redis or Valkey. Credentials belong in the URL, as `redis://default:PASSWORD@host:6379`; percent-encode a password that contains `@`, `:`, `/`, or `#`. Every instance then reads the same entries and a restart does not clear them. Without it the cache is in the process, which is enough for one instance. If the server becomes unreachable, the service falls back to memory and continues; the cost is Nansen credits, not an outage. A wrong password looks the same as an unreachable server from one failed command, so the service writes the reason once at startup and `/health` reports `redis (unreachable, using memory)` while it cannot reach the server.
+
+`RATE_LIMIT` requests per `RATE_LIMIT_WINDOW_S` are allowed for each client, 30 per minute by default. Above that the answer is `429` with a `Retry-After` header. The limit counts `/attestation` only, so a load balancer can still read `/health`. The counter lives in the same store, so the limit is shared between instances when Redis is set.
+
+CAUTION: THE CLIENT IS IDENTIFIED BY ITS SOCKET ADDRESS. BEHIND A PROXY EVERY REQUEST HAS THE SAME ADDRESS, SO SET `TRUST_PROXY=true` THERE TO USE `X-FORWARDED-FOR`. DO NOT SET IT WHEN THE SERVICE IS REACHABLE DIRECTLY, BECAUSE A CLIENT CAN PUT ANY VALUE IN THAT HEADER.
 
 The wallets in `fixtures/nansen.json` are answered from that file, and every other wallet from Nansen. A demo wallet therefore keeps the same numbers while real wallets stay live. With no `NANSEN_API_KEY` the service is fixture-only, which is the mode for a local demo. Without the fixture file it reads Nansen for every wallet. `/health` reports which of the three applies.
 

@@ -1,4 +1,5 @@
 import type { Address } from "viem";
+import type { Store } from "../store";
 import type { NansenClient, NansenLabel } from "./client";
 
 /** The three Nansen-derived fields that go into the attestation hash. */
@@ -31,19 +32,34 @@ export async function profileCreator(nansen: NansenClient, wallet: Address, chai
   };
 }
 
-/** Memoizes profileCreator per wallet for `ttlMs`, so repeated pulls for the
- *  same creator do not each spend Nansen credits. */
-export function cachedProfiler(nansen: NansenClient, chain: string, ttlMs: number) {
-  const cache = new Map<string, { at: number; value: Promise<CreatorProfile> }>();
+/** Serves a profile from the store and only calls Nansen on a miss. Concurrent
+ *  calls for one wallet share a single request, and a failure is never cached. */
+export function cachedProfiler(nansen: NansenClient, chain: string, ttlMs: number, store: Store) {
+  const inFlight = new Map<string, Promise<CreatorProfile>>();
+
   return (wallet: Address): Promise<CreatorProfile> => {
-    const key = wallet.toLowerCase();
-    const hit = cache.get(key);
-    if (hit && Date.now() - hit.at < ttlMs) return hit.value;
-    const value = profileCreator(nansen, wallet, chain).catch((err) => {
-      cache.delete(key); // do not cache failures
-      throw err;
-    });
-    cache.set(key, { at: Date.now(), value });
-    return value;
+    const key = `profile:${chain}:${wallet.toLowerCase()}`;
+    const running = inFlight.get(key);
+    if (running) return running;
+
+    const load = (async () => {
+      const cached = await store.get(key);
+      if (cached) return decode(cached);
+      const profile = await profileCreator(nansen, wallet, chain);
+      await store.set(key, encode(profile), Math.max(1, Math.ceil(ttlMs / 1000)));
+      return profile;
+    })();
+    inFlight.set(key, load);
+    return load.finally(() => inFlight.delete(key));
   };
+}
+
+/** `pnl` is a bigint, so it travels as a decimal string here too. */
+function encode(p: CreatorProfile): string {
+  return JSON.stringify({ label: p.label, pnl: p.pnl.toString(), winRate: p.winRate });
+}
+
+function decode(raw: string): CreatorProfile {
+  const { label, pnl, winRate } = JSON.parse(raw) as { label: string; pnl: string; winRate: number };
+  return { label, pnl: BigInt(pnl), winRate };
 }

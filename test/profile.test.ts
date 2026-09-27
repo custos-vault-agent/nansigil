@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { FixtureNansenClient } from "../src/nansen/fixture";
+import { memoryStore } from "../src/store";
 import { cachedProfiler, pickLabel, profileCreator } from "../src/nansen/profile";
 
 const WALLET = "0x00000000000000000000000000000000000000aa";
@@ -42,10 +43,45 @@ describe("cachedProfiler", () => {
         return null;
       },
     };
-    const profile = cachedProfiler(nansen, "all", 60_000);
+    const profile = cachedProfiler(nansen, "all", 60_000, memoryStore());
     await profile(WALLET);
     await profile(WALLET);
     await profile("0x00000000000000000000000000000000000000AA"); // same wallet, different case
     expect(calls).toBe(1);
+  });
+
+  test("concurrent calls for one wallet share a single Nansen request", async () => {
+    let calls = 0;
+    const nansen = {
+      async labels() {
+        calls++;
+        await Bun.sleep(5);
+        return [];
+      },
+      async pnlSummary() {
+        return null;
+      },
+    };
+    const profile = cachedProfiler(nansen, "all", 60_000, memoryStore());
+    await Promise.all([profile(WALLET), profile(WALLET), profile(WALLET)]);
+    expect(calls).toBe(1);
+  });
+
+  test("a failure is not cached", async () => {
+    let calls = 0;
+    const nansen = {
+      async labels() {
+        calls++;
+        if (calls === 1) throw new Error("nansen down");
+        return [];
+      },
+      async pnlSummary() {
+        return null;
+      },
+    };
+    const profile = cachedProfiler(nansen, "all", 60_000, memoryStore());
+    await expect(profile(WALLET)).rejects.toThrow("nansen down");
+    await profile(WALLET);
+    expect(calls).toBe(2);
   });
 });

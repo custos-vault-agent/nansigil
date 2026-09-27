@@ -35,6 +35,12 @@ describe("GET /attestation/:wallet", () => {
   });
   test("health reports the attestor and data source", async () => {
     const body = await (await app.handle(new Request("http://localhost/health"))).json();
-    expect(body).toEqual({ ok: true, attestor: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", nansen: "fixture" });
+    expect(body).toEqual({
+      ok: true,
+      attestor: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      nansen: "fixture",
+      store: "memory",
+      rateLimit: "30/60s",
+    });
   });
 });
